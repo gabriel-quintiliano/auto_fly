@@ -1,0 +1,6 @@
+user: gabrielqrpereira
+password: iamTH3bac0n
+organograma: ganha tempo - centro
+emitir_etiquetas: s
+emitir_planilhas: s
+abrir_relatorios: n
