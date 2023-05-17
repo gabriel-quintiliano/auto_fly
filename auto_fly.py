@@ -49,6 +49,22 @@ mascaras = {
     '001.001.079': {'organograma': '79', 'processos': [], 'online': False}
     }
 
+# As variáveis abaixo serão usadas para armazenar o número dos processos que necessitem
+# de algum documento reemitido devido à correção de informação específica. Somente
+# 'planilhas isoladas' que na verdade vai ser um 'alias' para o dict mascaras visto
+# que planilhas necesitam da info de organograma além do número do prot. Não vai ocorrer
+# Nenhum conflito de informações pois a execução do programa para processos comuns e
+# para corrigido nunca acontece em simultâneo.
+etiquetas_isoladas = list()
+comp_confirm_isolados = list()
+planilhas_isoladas = {'76': [], '209': [], '555': [], '195': [],
+                      '546': [], '569': [], '358': [], '115': [],
+                      '180': [], '362': [], '132': [], '164': [],
+                      '186': [], '357': [], '565': [], '205': [],
+                      '189': [], '163': [], '360': [], '192': [],
+                      '200': [], '162': [], '361': [], '359': [],
+                      '211': [], '79': []}
+
 # Para testes se necessário
 """mascaras = {
     '001.001.076': {'organograma': '76', 'processos': []},
@@ -97,8 +113,8 @@ total_rel_planilhas = 0
 total_rel_etiquetas = 0
 total_rel_planilhas = 3
 
-# Essa variável vai guardar todas as opções obtidas a cada call da função get_options()
-overall_options = dict()
+"""# Essa variável vai guardar todas as opções obtidas a cada call da função get_options()
+overall_options = dict()"""
 
 # + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - +
 
@@ -220,8 +236,8 @@ def gerar_rel_processos(data: str) -> None:
     
     print("Demonstrativo de processos emitido!\n")
 
-
-def abrir_rel_e_extrair_processos() -> None:
+# MAIS LÁ NO FINAL TEM UMA VERSÃO ATUALIZADA DESSA MESMA FUNÇÃO
+"""def abrir_rel_e_extrair_processos() -> None:
 
     # Helper function para 'gerar_rel_processos()'. Abre o relatório e extrai os processos (os registrando
     # no dicionário 'mascaras')
@@ -265,7 +281,7 @@ def abrir_rel_e_extrair_processos() -> None:
     
     # Agora que já extrairmos e organizamos os processos de acordo, voltamos o foco para a janela principal
     driver.switch_to.window(driver.window_handles[0])
-    print("Todos os processos foram extraídos!")
+    print("Todos os processos foram extraídos!")"""
 
 
 def processo_online(processo: WebElement) -> bool:
@@ -567,16 +583,16 @@ def obter_login():
         pausar_antes_de_sair()
 
 
-def demonstrar_processos_sem_andamento():
+def demonstrar_processos_sem_andamento(msg: str ="\nProcessos sem andamento:"):
     if sem_andamento:
-        print(f"\nProcessos sem andamento:")
+        print(msg)
         for processo in sem_andamento:
             print(processo)
 
 
-def demonstrar_processos_com_andamento_incomum():
+def demonstrar_processos_com_andamento_incomum(msg: str ="\nProcessos com andamento 'incomum':"):
     if andamento_desconhecido:
-        print(f"\nProcessos com andamento 'incomum':")
+        print(msg)
         for processo in andamento_desconhecido:
             print(processo)
 
@@ -1142,21 +1158,250 @@ def get_continuous_key_index(file, ckey: str, separator=',') -> int:
     file.seek(initial_fpi)
     return None
 
+# MACRO AQUI, DPS COLOCAR NUMA FILE SEPRARADA
+execution_info_file = get_options('filepaths.txt', separator=':')['execution_info']
 
-def get_report_info_from(file, ckey: str, ckey_index: int, separator=',', ending_pattern='<<<') -> dict:
-    pass
+# FUNÇÕES MAIS RECENTES FEITAS - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+class Queue(list):
+
+    def __init__(self, keys: list[str]) -> None:
+        super().__init__(keys)
+        self.keys = keys
+        self._i = 0
+        self.cur_key = keys[0]
+    
+    def go_to_next_key(self):
+        self._i = (self._i + 1) % len(self.keys)
+        self.cur_key = self.keys[self._i]
+        return self.cur_key
+    
+    @property
+    def following_key(self):
+        return self.keys[(self._i + 1) % len(self.keys)]
+    
+    def append(self, __object) -> None:
+        self.keys.append(__object)
+        return super().append(__object)
 
 
-def get_reports_info_from(filepath, separator=',', ending_pattern='<<<') -> list[dict]:
+def montar_dict(file, keys: Queue, separator: str) -> dict | None:
+    
+    values_map = dict()
+    final_dict = dict()
+
+    for _ in range(len(keys)):
+        v_start = set_fpi(file, keys.cur_key, separator, '>')
+        v_end = set_fpi(file, keys.following_key, separator, '<')
+
+        v_len = v_end - v_start
+
+        values_map[keys.cur_key] = (v_start, v_len)
+        keys.go_to_next_key()
+    
+    # print(values_map)
+    
+    for key,(v_start, v_len) in values_map.items():
+        file.seek(v_start)
+        value = file.read(v_len)
+        final_dict[key] = value.decode()
+    
+    # print(final_dict)
+    # print()
+
+    if final_dict[keys.cur_key]:
+        return final_dict
+    
+    return None
+
+
+def get_all_reports_info_from(filepath, keys: list[str], separator=',') -> list[dict]:
     
     reports_info = list()
+    keys = Queue(keys)
     
-    with open(filepath, 'r') as fp:
-        
-        ckey_index = get_continuous_key_index(fp, 'geral', ':')
-        
-        while (report_info := get_report_info_from(fp, 'geral', ckey_index, separator, ending_pattern)):
-            reports_info.append(report_info)
+    with open(filepath, 'rb') as fp:
+        while (report := montar_dict(fp, keys, separator)):
+            reports_info.append(report)
+    
+    if len(reports_info) > 1:
+        return reports_info
+    
+    return reports_info[0]
+
+# This can only be used with a file that's already opened in a mode that allows reading in binary
+# if the file is closed and reopened, the call for this function will return the first report again
+def get_next_report_info_from(file, keys: list[str], separator=',') -> dict:
+    
+    keys = Queue(keys)
+    report_info = montar_dict(file, keys, separator)
+    
+    return report_info
 
 
 execution_info_file = get_options('filepaths.txt', separator=':')['execution_info']
+
+
+# - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - +
+# Nova versão de abrir_rel_e_extrair_processos()
+
+def abrir_rel_e_extrair_processos(corrigidos: bool = False) -> None:
+
+    abrir_rel_e_mudar_foco()
+
+    total_protocolos = driver.find_element(By.XPATH, "//tr[td/span[text()='Total de processos:']]/descendant::span[2]").text
+    total_protocolos = int(total_protocolos)
+    report_index = 0
+
+    # Se estivermos lidando com processos corrigidos abrimos no modo de leitura
+    # se não, no modo de escrita, ambos como binário.
+    open_mode = 'rb' if corrigidos else 'wb'
+
+    with open('info_processos.txt', open_mode) as fp:
+
+        while report_index < total_protocolos:
+            
+            info = extract_info_from_report(report_index)
+            if not corrigidos:
+                store_info_and_write_to_file(fp, info)
+            else:
+                store_info_and_compare(fp, info)
+    
+            report_index += 1
+    
+    # Agora que já extrairmos e organizamos os processos de acordo, voltamos o foco para a janela principal
+    driver.switch_to.window(driver.window_handles[0])
+    print("Todos os processos foram extraídos!")
+
+
+exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
+
+
+def store_info_and_write_to_file(file, report: dict) -> None:
+
+    rep_number = report['numero']
+    rep_masc = report['mascara']
+
+    if not rep_masc:
+        andamento_desconhecido.append(rep_number)
+
+    else:
+        if not report['online']:
+            if report['solicitacao'] not in sem_etiqueta:
+                mascaras[rep_masc]['processos'].append(rep_number)
+        else:
+            mascaras[rep_masc]['online'] = True
+    
+    values = tuple(report[value] for value in exec_file_keys)
+    write_info_to_file(file, exec_file_keys, values, ':')
+
+
+def store_info_and_compare(file, report: dict) -> None:
+    
+    rep_masc = report['mascara']
+    rep_number = report['numero']
+
+    comp, etiq, plan = False, False, False
+    
+    # Se foi protocolado depois da execução do programa normal 'automatizacao_fly'
+    # não vai ter info nenhuma em 'info_processos.txt' então sabemos que tem que
+    # imprimir tudo de qualquer jeito.
+    original_info = get_next_report_info_from(file, exec_file_keys, ':')
+
+    if not original_info or report['solicitacao'] != original_info["solicitacao"]:
+        comp, etiq, plan = True, True, True
+
+    else:
+        if report['data_andamento'] != original_info["data_andamento"]:
+            etiq, plan = True, True
+    
+        if report['req_e_bef'] != original_info["req_e_bef"]:
+            comp, etiq = True, True
+    
+        if len(report['geral']) != len(original_info["geral"]):
+            if report['geral'] != original_info["geral"]:
+                comp, plan = True, True
+    
+    if comp:
+        comp_confirm_isolados.append(rep_number)
+
+    if etiq:
+        etiquetas_isoladas.append(rep_number)
+
+    if plan:
+        if rep_masc:
+            try:
+                rep_org = mascaras[rep_masc]['organograma']
+                planilhas_isoladas[rep_org].append(rep_number)
+            except KeyError:
+                andamento_desconhecido.append(rep_number)
+        else:
+            sem_andamento.append(rep_number)
+
+
+# Extrai do processo com o index informado e retorna um dicionário contendo as chaves
+# solicitacao, numero, online, req_e_bef, geral, mascara e data_andamento. Cada uma
+# dessas tem uma string como valor (com a info sugerida pela chave) com exceção de
+# 'online' que tem um valor boolean, a a info não puder ser recuperada, o valor da
+# chave correspondente será '' (string vazia).
+def extract_info_from_report(prot_index: int) -> dict:
+
+    processo = driver.find_element(By.XPATH, f"//table/descendant::table[descendant::tr[td/span[text()='Número do processo:'] and td/span[string-length(text())=12]]][{prot_index + 1}]")
+    
+    info_dict = dict()
+    solicitacao = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Solicitação:']]/following-sibling::td/span").text
+    info_dict["solicitacao"] = get_left_most_numbers_from(solicitacao)
+    
+    info_dict["numero"] = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Número do processo:']]/following-sibling::td/span[string-length(text())=12 and contains(text(), '/202')]").text.lstrip('0')
+    info_dict["req_e_bef"] = get_field_values(processo, ['Requerente', 'Beneficiário'])
+    info_dict['online'] = False if not processo_online(processo) else True
+    
+    field_names = ['Endereço', 'Telefone', 'Celular', 'Município', 'Procedência', 'Súmula', 'Observação']
+    info_dict["geral"] = get_field_values(processo, field_names)
+    
+    try:
+        info_dict['mascara'] = processo.find_element(By.XPATH, "tbody/tr[td/span[text()='Máscara']]/following-sibling::tr[3]/td[2]/span[contains(text(), '001.')]").text
+        info_dict["data_andamento"] = processo.find_element(By.XPATH, "descendant::tr[td/span[text()='Organograma']]/following-sibling::tr[5]/td/span").text
+
+    except exc.NoSuchElementException:
+        info_dict["data_andamento"] = ''
+        info_dict['mascara'] = ''
+
+    return info_dict
+
+
+def get_field_values(report, fields) -> str:
+
+    if not isinstance(fields, list):
+        fields = [fields]
+    
+    values = ''
+    
+    for field in fields:
+        # Ainda tem vários campos que configuram exceções, ou no caso de não ter uma valor disponível
+        # e o xpath retorna um outro então, ou de não tem mas ele acha um span vazio
+        field = field[0].upper() + field[1:] # se a pessoa escrever tudo minúsculo
+
+        try:
+            xpath_expression = f"descendant::tr/td[span[contains(text(),'{field}:')]]/following-sibling::td[2]/span"
+            values += report.find_element(By.XPATH, xpath_expression).text
+        except exc.NoSuchElementException:
+            values += ''
+
+    return values
+
+
+def write_info_to_file(file, keys, values, separator: str = ','):
+
+    if not (isinstance(keys, tuple) or isinstance(keys, list)):
+        keys = [keys]
+
+    if not (isinstance(values, tuple) or isinstance(values, list)):
+        values = [values]
+
+    for key, value in zip(keys, values):
+        value_to_be_written = (key + separator + value).encode()
+        # print(f'VAI ESCREVER:\n{value_to_be_written}')
+        file.write(value_to_be_written)
+    
+    # print()
