@@ -1,0 +1,26 @@
+- + - + - DADOS DO USUÁRIO - + - + -
+
+user:
+password:
+organograma:
+
+
+- + - + - OPÇÕES DE EMISSÃO - + - + -
+
+emitir_etiquetas: n
+emitir_planilhas: n
+abrir_relatorios: n
+
+
+- + - + - OPÇÕES DE EMISSÃO (CORRIGIDOS) - + - + -
+
+emitir_etiquetas_corrigidas: s
+emitir_planilhas_corrigidas: s
+emitir_protocolos_corrigidos: s
+abrir_relatorios_corrigidos: s
+
+
+- + - + - OUTROS - + - + -
+(não mexer aqui)
+verificar_execucao_anterior: s
+armazenar_info_execucao: s
