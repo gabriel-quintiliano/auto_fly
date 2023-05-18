@@ -56,8 +56,8 @@ mascaras = {
 # Nenhum conflito de informações pois a execução do programa para processos comuns e
 # para corrigido nunca acontece em simultâneo.
 etiquetas_isoladas = list()
-comp_confirm_isolados = list()
-planilhas_isoladas = {'76': [], '209': [], '555': [], '195': [],
+comp_abertura_isolados = list()
+comp_confircacao_isoladas = {'76': [], '209': [], '555': [], '195': [],
                       '546': [], '569': [], '358': [], '115': [],
                       '180': [], '362': [], '132': [], '164': [],
                       '186': [], '357': [], '565': [], '205': [],
@@ -105,6 +105,9 @@ feriados = ['01/05/2023', '08/06/2023', '09/07/2023', '15/08/2023', '07/09/2023'
             '12/10/2023', '28/10/2023', '02/11/2023', '15/11/2023', '20/11/2023',
             '25/12/2023']
 
+str_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+             'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
 # A variável abaixo vai guardar quantos relatórios de confirmação e de estiquetas foram emitidos
 total_rel_etiquetas = 0
 total_rel_planilhas = 0
@@ -117,6 +120,16 @@ total_rel_planilhas = 3
 overall_options = dict()"""
 
 # + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - +
+
+def _initialize_global_variables():
+    global hoje
+    global exec_info
+    global user_options
+    
+    hoje = dt.datetime.now(tz=dt.timezone(dt.timedelta(hours=-3), 'UTC-3'))
+    exec_info = get_options(execution_info_file, separator=':')
+    user_options = get_options('options.txt', separator=':')
+
 
 def abrir_e_logar(user: str, password: str, organograma: str):
 
@@ -359,37 +372,47 @@ def acessar_no_menu(*menus: str) -> None:
         home = driver.find_element(By.XPATH, "//span[@id='fHeader:sHeader:fullMenu']//ul[@id='nav']//li[@class='icons first']//a[img[@title='Gestão de protocolos']]")
         home.click()
         return
-
-    try:
-        # Extrai do html o WebElement que representa o menu superior principal descrito
-        xpath_exp = f"//span[@id='fHeader:sHeader:fullMenu']//ul[@id='nav']//li[a[text()='{menus[0]}']]"
-        aba_especifica = driver.find_element(By.XPATH, xpath_exp)
-        
-        # Esse loop vai iterar por cada um dos menus e submenus passados como argumentos e acessar cada
-        # um na ordem em que foram passados
-        for n, submenu in enumerate(menus):
-            elem = aba_especifica.find_element(By.LINK_TEXT, submenu)
-            
-            # Eu não tenho a mínima ideia do porque quando essa função é chamada como
-            # acessar_no_menu('Relatórios', 'Gerenciais', 'Estornos de processo', 'Encerrados')
-            # só funciona com essas duas linhas de código abaixo, não tenho a mínima ideia
-            # se tirar qualquer uma das duas dá erros. Deve ter a ver com o itme encerrados
-            # estar lá na pqp embaixo da tela. RESOLVER DPS EM ALGUM MOMENTO
-            elem.screenshot(f"C:/Users/gabri/OneDrive/Área de Trabalho/step{n}.png")
-            driver.execute_script("arguments[0].scrollIntoView();", elem)
     
-            elem.click()
+    while True:
+        try:
+            # Extrai do html o WebElement que representa o menu superior principal descrito
+            xpath_exp = f"//span[@id='fHeader:sHeader:fullMenu']//ul[@id='nav']//li[a[text()='{menus[0]}']]"
+            aba_especifica = driver.find_element(By.XPATH, xpath_exp)
+            
+            # Esse loop vai iterar por cada um dos menus e submenus passados como argumentos e acessar cada
+            # um na ordem em que foram passados
+            for n, submenu in enumerate(menus):
+                elem = aba_especifica.find_element(By.LINK_TEXT, submenu)
+                
+                # Eu não tenho a mínima ideia do porque quando essa função é chamada como
+                # acessar_no_menu('Relatórios', 'Gerenciais', 'Estornos de processo', 'Encerrados')
+                # só funciona com essas duas linhas de código abaixo, não tenho a mínima ideia
+                # se tirar qualquer uma das duas dá erros. Deve ter a ver com o itme encerrados
+                # estar lá na pqp embaixo da tela. RESOLVER DPS EM ALGUM MOMENTO
+                elem.screenshot(f"C:/Users/gabri/OneDrive/Área de Trabalho/step{n}.png")
+                driver.execute_script("arguments[0].scrollIntoView();", elem)
+        
+                elem.click()
+        
+            return
+            
+        except exc.ElementClickInterceptedException:
+            fechar_notificacao()
+        
+        except exc.ElementNotInteractableException:
+            # Vai ser no caso de já ter fechado uma vez e desaparecido ao tentarmos interagir
+            pass
 
-    except exc.NoSuchElementException:
-        print(f"""Não foi possível localizar a opição '{submenu}'\nVerifique a ortografia da palavra, se a opição realmente existe e se esta descrina na ordem correta""")
-        fechar_nav_e_pausar_antes_sair()
+        except exc.NoSuchElementException:
+            print(f"""Não foi possível localizar a opição '{submenu}'\nVerifique a ortografia da palavra, se a opição realmente existe e se esta descrina na ordem correta""")
+            fechar_nav_e_pausar_antes_sair()
 
 
 def fechar_notificacao():
 
     # Vai achar o botão ignorar e clicar nele até desaparecer.
     # Se não achar o botão (NoSuchElementException) ou achar e tentar clicar mas este já tiver
-    # desaparecido (StaleElementReferenceException) vai entrar no except e finalizar a função
+    # desaparecido (StaleElementReferenceException) vai entrar no except e finalizar a função.
     # ElementNotInteractableException vai ser no caso de já ter fechado uma vez, reaparecer e ao tentar
     # clicar ter desaparecido denovo, o elemento ainda está no html mas não é mais clicavel
 
@@ -453,16 +476,16 @@ def preencher_e_emitir(field: str, text: str, button: str =None, press_enter: bo
             time.sleep(0.2)
             _field.send_keys(text) # Escreve o text no field
 
-            if press_enter:
-                _field.send_keys(Keys.ENTER)
 
-            elif button:
+            if button:
                 _button = driver.find_element(By.XPATH, f"//input[@value='{button}' and @type='button']")
                 _button.click()
                 
                 if notice:
                     if not emitido_com_sucesso():
                         _button.click()
+            else: # se não tiver um botão definido, a função 'pressiona' ENTER
+                _field.send_keys(Keys.ENTER)
             
             break # all done
             
@@ -488,11 +511,8 @@ def preencher_e_emitir(field: str, text: str, button: str =None, press_enter: bo
             fechar_nav_e_pausar_antes_sair()
 
 
+# FUNÇÃO REFATORADA
 def emitir_etiquetas():
-
-    # Emite as etiqutas de todos os processos presente no dicionários mascaras de acordos com os organogramas
-    # separadamente e tomando em consideração a quantidade máxima de processos que cabe no campo de preenchimento
-    # como descrito na variável 'peedacos'
 
     print('Preparando-se para emitir etiquetas...')
 
@@ -501,31 +521,31 @@ def emitir_etiquetas():
     # muda o modelo para "modelo com beneficiário"
     Select(driver.find_element(By.ID, "mainForm:iEtiquetas")).select_by_visible_text("Mod com Beneficiario")
 
-    for mascara, dados in mascaras.items():
+    fonte_processos = [etiquetas_isoladas] if etiquetas_isoladas else mascaras.values()
+
+    for processos in fonte_processos:
         
-        # Obtém a lista com o número dos processos que cabe a emissão de etiqueta de determinado organograma
-        processos = dados['processos']
+        # Se etiquetas isoladas é um valor falsy, significa que não estamos lidando com processos
+        # corrigidos, assim processos (acima) é um valor de mascaras, o qual por sua vez é um dicionário
+        # com a key 'processos' para o números dos processos de determinado organograma.
+        if not etiquetas_isoladas:
+            processos = processos['processos']
 
         # checa se tem algum processo dentro da lista, se não tiver nem acessa a lista
+        # quando não no modo de processos corrigidos pode acontecer de não ter nenhum processo
+        # para determinado organograma, por isso é necessária a verificação
         if processos:
-            # pedacos são os pedaços em que teremos que dividir a quantidade total de processos para caber
-            # campo de descrição dos processos, no caso, até 23 processos por pedaço, mais que isso já
-            # será +1 pedaço (ex: 23//24 = 0(.958) + 1 = 1 pedaço, ex2: 28/24 = 1(.166) + 1 = 2 pedaços)
-            pedacos = len(processos)//24 + 1
             
-            # Roda o loop de acordo com a quantidade de pedaços
-            for n in range(pedacos):
-                i = 23 * n     # índice inicial
-                f = 23 * (n+1) # índice final (não incluído)
+            # se não tiver a func iter(), ocorrerá apenas 1 iteração considerando slice como
+            # a lista inteira de chunks ao invés de acessar 1 chunk de cada vez.
+            # Aparentemente, com iterables, a função/dunder method __iter__() chamado por
+            # padrão, mas com funções não, mesmo que retornem 1 iterable no final.
+            for chunk in iter(slice_in_chunks(processos, 23)):
+
+                input_formatado = ','.join(chunk)
                 
-                # Pega o slice (com 23 processos)
-                pedaco = processos[i:f]
-                # Formata o imput final para ser escrito no fomulário juntando os processos do slice
-                # com uma ',' separando cada um destes
-                input_final = ','.join(pedaco)
-                
-                # preenche 'input_final' no campo 'Número do processo'
-                preencher_e_emitir("Número do processo", input_final, button="Emitir", notification=True, notice=True, press_enter=False)
+                # preenche 'input_formatado' no campo 'Número do processo'
+                preencher_e_emitir("Número do processo", input_formatado, button="Emitir", notification=True, notice=True)
                 global total_rel_etiquetas
                 total_rel_etiquetas += 1
 
@@ -544,7 +564,7 @@ def emitir_comprovantes_de_confirmação(data: str):
     Select(driver.find_element(By.ID, "mainForm:tipo")).select_by_visible_text("Por processos")
     
     # Para dar tempo de carregar as opções descritas abaixo depois de mudar o select acima
-    time.sleep(0.5)
+    time.sleep(0.3)
 
     # Data dos andamentos
     de = driver.find_element(By.ID, "mainForm:dhAndamentosIni")
@@ -554,7 +574,7 @@ def emitir_comprovantes_de_confirmação(data: str):
     ate.send_keys(data)
 
     # Itera por cada uma das mascaras de organograma
-    for mascara, dados in mascaras.items():
+    for dados in mascaras.values():
         
         # Se tiver qualquer tipo de processo nesse organograma, será emitido o comprovante de confirmação
         # desse organograma específico
@@ -562,12 +582,73 @@ def emitir_comprovantes_de_confirmação(data: str):
 
             organograma = dados['organograma']
             # print(f"\nVai imprimir {organograma}")
-            preencher_e_emitir("Destinado à", organograma, button="Emitir", notice=True, notification=True, press_enter=False)
+            preencher_e_emitir("Destinado à", organograma, button="Emitir", notice=True, notification=True)
             
             global total_rel_planilhas
             total_rel_planilhas += 1
 
     print("Todos os comprovantes de confirmação foram emitidos!\n")
+
+
+def emitir_comprovantes_de_confirmação_isolados():
+
+    # Emite os comprovante de confirmação dos processos de acordo 'data' no formato 'dd/mm/aaaa'
+    print('Preparando-se para emitir os comprovates de confirmação...')
+
+    acessar_no_menu("Relatórios", "Comprovante de confirmação")
+
+    # Seleciona "Gerar comprovantes por" --> "Por processos"
+    Select(driver.find_element(By.ID, "mainForm:tipo")).select_by_visible_text("Por processos")
+    
+    # Para dar tempo de carregar as opções descritas abaixo depois de mudar o select acima
+    time.sleep(0.3)
+
+    # Itera por cada uma das mascaras de organograma
+    for organograma, processos in comp_confircacao_isoladas.items():
+        
+        if processos:
+            preencher_e_emitir("Destinado à", organograma, notification=True, press_enter=False)
+
+            for chunk in iter(slice_in_chunks(processos, 23)):
+                preencher_e_emitir("Número do processo", chunk, button="Emitir", notice=True, notification=True)
+
+    print("Todos os comprovantes de confirmação foram emitidos!\n")
+
+
+def emitir_comprovantes_de_abertura_isolados():
+
+    print('Preparando-se para emitir os comprovates de abertura...')
+
+    acessar_no_menu('Relatórios', 'Comprovante de abertura de processo')
+    
+    # exec_info['reference_date'] == str no formato 'dd/mm/yyyy' então o slice abaixo
+    # vai representar só os algarismos do mês para a comparação abaixo.
+    ref_date_month = exec_info['reference_date'][3:5]
+    ref_date_year = exec_info['reference_date'][6:10]
+
+    # Verifica se o mês da data de referência dos processos corrigidos é diferente do mês
+    # de execução do programa, se sim vamos ter que mudar no fly o mês para o da referência.
+    # Se não for igual, é porque virou o mês.
+    if ref_date_month != hoje.strftime('%m'):
+        
+        ref_date_month = ref_date_month.lstrip('0')
+        Select(driver.find_element(By.ID, "mainForm:mesProtocolizacao")).select_by_value(ref_date_month)
+
+        if ref_date_year != hoje.strftime('%Y'):
+            Select(driver.find_element(By.ID, "mainForm:anoProtocolizacao")).select_by_value(ref_date_year)
+    
+    # Para dar tempo de carregar as opções descritas abaixo depois de mudar o select acima
+    time.sleep(0.3)
+
+    # Se tiver qualquer tipo de processo nesse organograma, será emitido o comprovante de confirmação
+    # desse organograma específico
+    if comp_abertura_isolados:
+
+        for chunk in iter(slice_in_chunks(comp_abertura_isolados, 23)):
+            input_formatado = ','.join(chunk)
+            preencher_e_emitir("Número do processo", input_formatado, button="Emitir", notification=True, notice=True)
+
+    print("Todos os comprovantes de abertura de processo foram emitidos!\n")
 
 
 def obter_login():
@@ -721,7 +802,7 @@ def construir_dict(inicio, fim):
     # reps_per_page is the default quantity of reports displayed in the page
     reps_per_page = get_items_per_page()
             
-    # início - 1 é para ‘corrigir’ a o início da contagem para 0 visto que os argumentos
+    # início - 1 é para 'corrigir' a o início da contagem para 0 visto que os argumentos
     # ínicio e fim são ordinais que representam a posição processo na página, assim,
     # contagem iniciada de 1 igual no xpath.
 
@@ -872,26 +953,24 @@ def write_value_for_key(filepath, keys, values, separator=','):
             cur_fpi = fp.tell()
             fp.seek(0,2)
             file_end = fp.tell()
-            fp.seek(cur_fpi, 1)
+            fp.seek(cur_fpi)
 
             for key, value in zip(keys, values):
                 if (cur_fpi := set_fpi(fp, key, separator)) != file_end:
 
                     rest_of_file = parse_remaining_text(fp.read())
-                    print("rest_of_file =", rest_of_file)
+                    # print("rest_of_file =", rest_of_file)
                     fp.seek(cur_fpi)
 
                     # Para melhorar a leitura, eu incluí um espaço e quebra de linha a serem escritos
                     # junto com o 'value' passado pelo usuário.
                     fp.write(f' {value}{os_linesep}'.encode())
-                    print('valor written =', os_linesep.encode() + value.encode())
+                    # print('valor written =', os_linesep.encode() + value.encode())
                     
                     # Se já não tiver nada no resto do arquivo, não tem oque escrever
                     if rest_of_file:
                         fp.truncate()
                         fp.write(rest_of_file)
-                    else:
-                        print('nao tem resto')
                     
                     fp.seek(0)
                 else:
@@ -1045,13 +1124,6 @@ def get_options(filepath, separator: str = ',') -> None:
         exit()
 
 
-def get_user_options_for_execution(file, separator=','):
-    global user_options
-    user_options = get_options(file, separator=separator)
-
-    return user_options
-
-
 def _create_custom_dict(file, separator) -> dict:
     
     dicio = dict()
@@ -1079,8 +1151,6 @@ def _create_custom_dict(file, separator) -> dict:
 
 def gerar_data_referencia():
     
-    global hoje
-    hoje = dt.datetime.now(tz=dt.timezone(dt.timedelta(hours=-3), 'UTC-3'))
     # hoje = dt.datetime(2023,5,8,13,45,23,tzinfo=dt.timezone(dt.timedelta(hours=-3), 'UTC-3'))
     global ref_date
     ref_date = hoje # só pra não dar problema com
@@ -1101,17 +1171,17 @@ def gerar_data_referencia():
 def register_excecution_info():
 
     keys = (
-        'reference_date',
         'last_execution',
         'by_user',
+        'reference_date',
         'emitir_etiquetas',
         'emitir_planilhas'
     )
 
     values = (
-        ref_date,
         hoje.strftime('%d/%m/%Y %H:%M'),
         user_options['user'],
+        ref_date,
         user_options['emitir_etiquetas'],
         user_options['emitir_planilhas']
     )
@@ -1121,8 +1191,8 @@ def register_excecution_info():
 
 def verificar_se_ja_foi_emitido():
     
-    exec_info = get_options(execution_info_file, separator=':')
-
+    # print(f'ref_date = {ref_date}')
+    # print(f'exec_info["reference_date"] = {exec_info["reference_date"]}')
     if ref_date == exec_info['reference_date']:
         print(f"\nO programa já foi executado em {exec_info['last_execution']}\nPor '{exec_info['by_user']}'\nPara processos do dia {exec_info['reference_date']}\n\nVerifique com a pessoa se os relatórios emitidos já foram impressos.")
         while True:
@@ -1132,6 +1202,8 @@ def verificar_se_ja_foi_emitido():
                 return
             elif resposta == 'n':
                 exit()
+    """else:
+        print('Não verificou mesmo')"""
 
 
 def get_continuous_key_index(file, ckey: str, separator=',') -> int:
@@ -1301,7 +1373,7 @@ def store_info_and_compare(file, report: dict) -> None:
     rep_masc = report['mascara']
     rep_number = report['numero']
 
-    comp, etiq, plan = False, False, False
+    c_abert, etiq, c_confirm = False, False, False
     
     # Se foi protocolado depois da execução do programa normal 'automatizacao_fly'
     # não vai ter info nenhuma em 'info_processos.txt' então sabemos que tem que
@@ -1309,30 +1381,30 @@ def store_info_and_compare(file, report: dict) -> None:
     original_info = get_next_report_info_from(file, exec_file_keys, ':')
 
     if not original_info or report['solicitacao'] != original_info["solicitacao"]:
-        comp, etiq, plan = True, True, True
+        c_abert, etiq, c_confirm = True, True, True
 
     else:
         if report['data_andamento'] != original_info["data_andamento"]:
-            etiq, plan = True, True
+            etiq, c_confirm = True, True
     
         if report['req_e_bef'] != original_info["req_e_bef"]:
-            comp, etiq = True, True
+            c_abert, etiq = True, True
     
         if len(report['geral']) != len(original_info["geral"]):
             if report['geral'] != original_info["geral"]:
-                comp, plan = True, True
+                c_abert, c_confirm = True, True
     
-    if comp:
-        comp_confirm_isolados.append(rep_number)
+    if c_abert:
+        comp_abertura_isolados.append(rep_number)
 
     if etiq:
         etiquetas_isoladas.append(rep_number)
 
-    if plan:
+    if c_confirm:
         if rep_masc:
             try:
                 rep_org = mascaras[rep_masc]['organograma']
-                planilhas_isoladas[rep_org].append(rep_number)
+                comp_confircacao_isoladas[rep_org].append(rep_number)
             except KeyError:
                 andamento_desconhecido.append(rep_number)
         else:
@@ -1405,3 +1477,31 @@ def write_info_to_file(file, keys, values, separator: str = ','):
         file.write(value_to_be_written)
     
     # print()
+
+def slice_in_chunks(iterable, c_len):
+
+    # A lógica por trás da expressão abaixo é utilizar o operador de parte inteira da divisão
+    # para possibilitar uma espécie de hashing de ranges de números em um único inteiro, que
+    # nesse caso vai ser a quantidade de chunks em que dividiremos o iterable.
+    # Assim, por exemplo sendo c_len = 20, ou seja, para cada chunk ter no máximo 20 elementos
+    # se a length do iterable for 48, sabemos que haverá um total de 3 chunks (20, 20 e 8)
+    # (48 - 1) // 20 + 1 == 47 // 20 + 1 == 2(.35) + 1 == 3 chunks
+    # ex2: (20 - 1) // 20 + 1 == 19 // 20 + 1 == 0(.95) + 1 == 1 chunk
+    # ex3: (21 - 1) // 20 + 1 == 20 // 20 + 1 == 1 + 1 == 2 chunks
+    chunks_num = (len(iterable) - 1) // c_len + 1
+
+    chunks = list()
+    start = 0
+
+    for i in range(chunks_num):
+        start = i*c_len
+        end = start + c_len
+        chunk = iterable[start:end]
+
+        chunks.append(chunk)
+    
+    return chunks
+
+# This call happens right here in the end to ensure it already has known all the other
+# functions it might need to use...
+_initialize_global_variables()
