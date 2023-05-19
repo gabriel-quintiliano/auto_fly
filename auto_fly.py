@@ -49,6 +49,9 @@ mascaras = {
     '001.001.079': {'organograma': '79', 'processos': [], 'online': False}
     }
 
+_organogramas = [org['organograma'] for org in mascaras.values()]
+print(_organogramas)
+
 # As variáveis abaixo serão usadas para armazenar o número dos processos que necessitem
 # de algum documento reemitido devido à correção de informação específica. Somente
 # 'planilhas isoladas' que na verdade vai ser um 'alias' para o dict mascaras visto
@@ -114,21 +117,46 @@ total_rel_planilhas = 0
 
 # Para testes, dps apaga as variáveis abaixo e deixa só as de cima originais
 total_rel_etiquetas = 0
-total_rel_planilhas = 3
+total_rel_planilhas = 0
 
-"""# Essa variável vai guardar todas as opções obtidas a cada call da função get_options()
-overall_options = dict()"""
+# Vai servir para todos as funções e outras variáveis que usam as keys ou informações
+# do arquivo que guarda as infos da execução anterior
+exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
 
 # + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - +
 
 def _initialize_global_variables():
     global hoje
+    global execution_info_file
     global exec_info
     global user_options
+    global unimportant_organogramas
     
     hoje = dt.datetime.now(tz=dt.timezone(dt.timedelta(hours=-3), 'UTC-3'))
+    execution_info_file = get_options('filepaths.txt', separator=':')['execution_info']
     exec_info = get_options(execution_info_file, separator=':')
     user_options = get_options('options.txt', separator=':')
+    unimportant_organogramas = set_unimportant_orgs()
+
+
+def set_unimportant_orgs() -> list:
+
+    un_orgs = list()
+
+    if user_options['organogramas_nao_corrigidos']:
+        un_orgs = [org.strip() for org in user_options['organogramas_nao_corrigidos'].split(',')]
+
+    elif user_options['organogramas_corrigidos']:
+        # talvez tenha que lidar colocar um iter() envolverndo options…
+        corr_orgs = [org.strip() for org in user_options['organogramas_corrigidos'].split(',')]
+        un_orgs = [org for org in _organogramas if org not in corr_orgs]
+    
+    print()
+    print(un_orgs)
+    exit(1)
+
+    return un_orgs
+
 
 
 def abrir_e_logar(user: str, password: str, organograma: str):
@@ -1135,7 +1163,7 @@ def _create_custom_dict(file, separator) -> dict:
         line = line.decode()
         
         i = 0
-        while line[i:i+1] != separator and line[i:i+linesep_len] != os_linesep:
+        while line[i] != separator and line[i:i+linesep_len] != os_linesep:
             i += 1
         
         if line[i:i+linesep_len] != os_linesep:
@@ -1230,8 +1258,6 @@ def get_continuous_key_index(file, ckey: str, separator=',') -> int:
     file.seek(initial_fpi)
     return None
 
-# MACRO AQUI, DPS COLOCAR NUMA FILE SEPRARADA
-execution_info_file = get_options('filepaths.txt', separator=':')['execution_info']
 
 # FUNÇÕES MAIS RECENTES FEITAS - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1311,9 +1337,6 @@ def get_next_report_info_from(file, keys: list[str], separator=',') -> dict:
     return report_info
 
 
-execution_info_file = get_options('filepaths.txt', separator=':')['execution_info']
-
-
 # - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - +
 # Nova versão de abrir_rel_e_extrair_processos()
 
@@ -1322,7 +1345,7 @@ def abrir_rel_e_extrair_processos(corrigidos: bool = False) -> None:
     abrir_rel_e_mudar_foco()
 
     total_protocolos = driver.find_element(By.XPATH, "//tr[td/span[text()='Total de processos:']]/descendant::span[2]").text
-    total_protocolos = int(total_protocolos)
+    total_protocolos = int(total_protocolos) - 1
     report_index = 0
 
     # Se estivermos lidando com processos corrigidos abrimos no modo de leitura
@@ -1344,9 +1367,6 @@ def abrir_rel_e_extrair_processos(corrigidos: bool = False) -> None:
     # Agora que já extrairmos e organizamos os processos de acordo, voltamos o foco para a janela principal
     driver.switch_to.window(driver.window_handles[0])
     print("Todos os processos foram extraídos!")
-
-
-exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
 
 
 def store_info_and_write_to_file(file, report: dict) -> None:
