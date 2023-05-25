@@ -49,15 +49,10 @@ mascaras = {
     '001.001.079': {'organograma': '79', 'processos': [], 'online': False}
     }
 
-# As variáveis abaixo serão usadas para armazenar o número dos processos que necessitem
-# de algum documento reemitido devido à correção de informação específica. Somente
-# 'planilhas isoladas' que na verdade vai ser um 'alias' para o dict mascaras visto
-# que planilhas necesitam da info de organograma além do número do prot. Não vai ocorrer
-# Nenhum conflito de informações pois a execução do programa para processos comuns e
-# para corrigido nunca acontece em simultâneo.
+# Variáveis que vão lidar com etiquetas, comp. de abertura e comp. de confirmação dos processos corrigidos
 etiquetas_isoladas = list()
 comp_abertura_isolados = list()
-comp_confircacao_isoladas = {'76': [], '209': [], '555': [], '195': [],
+comp_confircacao_isolados = {'76': [], '209': [], '555': [], '195': [],
                       '546': [], '569': [], '358': [], '115': [],
                       '180': [], '362': [], '132': [], '164': [],
                       '186': [], '357': [], '565': [], '205': [],
@@ -65,7 +60,7 @@ comp_confircacao_isoladas = {'76': [], '209': [], '555': [], '195': [],
                       '200': [], '162': [], '361': [], '359': [],
                       '211': [], '79': []}
 
-# 
+# Keys para serem usadas com o arquivo de dados da execução anterior
 exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
 
 # Para testes se necessário
@@ -114,10 +109,7 @@ str_meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
 # A variável abaixo vai guardar quantos relatórios de confirmação e de estiquetas foram emitidos
 total_rel_etiquetas = 0
 total_rel_planilhas = 0
-
-# Para testes, dps apaga as variáveis abaixo e deixa só as de cima originais
-total_rel_etiquetas = 0
-total_rel_planilhas = 3
+total_rel_comp_abert = 0
 
 """# Essa variável vai guardar todas as opções obtidas a cada call da função get_options()
 overall_options = dict()"""
@@ -562,7 +554,8 @@ def emitir_comprovantes_de_confirmação(data: str):
     # Emite os comprovante de confirmação dos processos de acordo 'data' no formato 'dd/mm/aaaa'
 
     print('Preparando-se para emitir os comprovates de confirmação...')
-
+    
+    global total_rel_planilhas # para a função pegar a variável global ao invés de criar uma local
     acessar_no_menu("Relatórios", "Comprovante de confirmação")
 
     # Seleciona "Gerar comprovantes por" --> "Por processos"
@@ -588,18 +581,17 @@ def emitir_comprovantes_de_confirmação(data: str):
             organograma = dados['organograma']
             # print(f"\nVai imprimir {organograma}")
             preencher_e_emitir("Destinado à", organograma, button="Emitir", notice=True, notification=True)
-            
-            global total_rel_planilhas
             total_rel_planilhas += 1
 
     print("Todos os comprovantes de confirmação foram emitidos!\n")
 
 
-def emitir_comprovantes_de_confirmação_isolados():
+def emitir_comprovantes_de_confirmacao_isolados():
 
     # Emite os comprovante de confirmação dos processos de acordo 'data' no formato 'dd/mm/aaaa'
     print('Preparando-se para emitir os comprovates de confirmação...')
-
+    
+    global total_rel_planilhas # para a função pegar a variável global ao invés de criar uma local
     acessar_no_menu("Relatórios", "Comprovante de confirmação")
 
     # Seleciona "Gerar comprovantes por" --> "Por processos"
@@ -609,13 +601,15 @@ def emitir_comprovantes_de_confirmação_isolados():
     time.sleep(0.3)
 
     # Itera por cada uma das mascaras de organograma
-    for organograma, processos in comp_confircacao_isoladas.items():
+    for organograma, processos in comp_confircacao_isolados.items():
         
         if processos:
             preencher_e_emitir("Destinado à", organograma, notification=True, press_enter=False)
 
             for chunk in iter(slice_in_chunks(processos, 23)):
+                input_formatado = ','.join(chunk)
                 preencher_e_emitir("Número do processo", chunk, button="Emitir", notice=True, notification=True)
+                total_rel_planilhas += 1
 
     print("Todos os comprovantes de confirmação foram emitidos!\n")
 
@@ -623,7 +617,8 @@ def emitir_comprovantes_de_confirmação_isolados():
 def emitir_comprovantes_de_abertura_isolados():
 
     print('Preparando-se para emitir os comprovates de abertura...')
-
+    
+    global total_rel_comp_abert # para a função pegar a variável global ao invés de criar uma local
     acessar_no_menu('Relatórios', 'Comprovante de abertura de processo')
     
     # exec_info['reference_date'] == str no formato 'dd/mm/yyyy' então o slice abaixo
@@ -652,6 +647,7 @@ def emitir_comprovantes_de_abertura_isolados():
         for chunk in iter(slice_in_chunks(comp_abertura_isolados, 23)):
             input_formatado = ','.join(chunk)
             preencher_e_emitir("Número do processo", input_formatado, button="Emitir", notification=True, notice=True)
+            total_rel_comp_abert += 1
 
     print("Todos os comprovantes de abertura de processo foram emitidos!\n")
 
@@ -825,7 +821,7 @@ def construir_dict(inicio, fim):
 def abrir_relatorios_emitidos():
     acessar_no_menu('Relatórios', 'Gerenciador de relatórios')
 
-    total_reports = total_rel_etiquetas + total_rel_planilhas
+    total_reports = total_rel_etiquetas + total_rel_planilhas + total_rel_comp_abert
 
     if total_reports > 0:
         reports_map = construir_dict(1, total_reports)
@@ -1412,7 +1408,7 @@ def store_info_and_compare(file, report: dict) -> None:
         if rep_masc:
             try:
                 rep_org = mascaras[rep_masc]['organograma']
-                comp_confircacao_isoladas[rep_org].append(rep_number)
+                comp_confircacao_isolados[rep_org].append(rep_number)
             except KeyError:
                 andamento_desconhecido.append(rep_number)
         else:
@@ -1483,7 +1479,7 @@ def write_info_to_file(file, keys, values, separator: str = ','):
     
     # print()
 
-def slice_in_chunks(iterable, c_len):
+def slice_in_chunks(iterable, c_len) -> list:
 
     # A lógica por trás da expressão abaixo é utilizar o operador de parte inteira da divisão
     # para possibilitar uma espécie de hashing de ranges de números em um único inteiro, que
