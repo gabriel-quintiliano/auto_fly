@@ -608,7 +608,7 @@ def emitir_comprovantes_de_confirmacao_isolados():
 
             for chunk in iter(slice_in_chunks(processos, 23)):
                 input_formatado = ','.join(chunk)
-                preencher_e_emitir("Número do processo", chunk, button="Emitir", notice=True, notification=True)
+                preencher_e_emitir("Número do processo", input_formatado, button="Emitir", notice=True, notification=True)
                 total_rel_planilhas += 1
 
     print("Todos os comprovantes de confirmação foram emitidos!\n")
