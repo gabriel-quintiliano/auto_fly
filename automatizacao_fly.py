@@ -1,8 +1,8 @@
 # import auto_fly_stable as af
 # import auto_fly as af
-# import auto_fly_normal as af
+import auto_fly_normal as af
 # import auto_fly_all_text as af
-import auto_fly_all_binary as af
+# import auto_fly_all_binary as af
 # import time
 
 def main():
