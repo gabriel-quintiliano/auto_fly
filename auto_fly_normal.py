@@ -1199,7 +1199,7 @@ def verificar_se_ja_foi_emitido():
     # print(f'ref_date = {ref_date}')
     # print(f'exec_info["reference_date"] = {exec_info["reference_date"]}')
     if ref_date == exec_info['reference_date']:
-        print(f"\nO programa já foi executado em {exec_info['last_execution']}\nPor '{exec_info['by_user']}'\nPara processos do dia {exec_info['reference_date']}\n\nVerifique com a pessoa se os relatórios emitidos já foram impressos.")
+        print(f"\nO programa já foi executado em {exec_info['last_execution']}\nPara processos do dia {exec_info['reference_date']}\nPor '{exec_info['by_user']}'\n\nVerifique se relatórios emitidos já foram impressos.")
         while True:
             resposta = input(f"Deseja continuar com a execução do programa[s/n]? ").lower()
             print(resposta)
@@ -1207,8 +1207,6 @@ def verificar_se_ja_foi_emitido():
                 return
             elif resposta == 'n':
                 exit()
-    """else:
-        print('Não verificou mesmo')"""
 
 
 def get_continuous_key_index(file, ckey: str, separator=',') -> int:
