@@ -65,6 +65,9 @@ comp_confircacao_isoladas = {'76': [], '209': [], '555': [], '195': [],
                       '200': [], '162': [], '361': [], '359': [],
                       '211': [], '79': []}
 
+# 
+exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
+
 # Para testes se necessário
 """mascaras = {
     '001.001.076': {'organograma': '76', 'processos': []},
@@ -1322,32 +1325,33 @@ def abrir_rel_e_extrair_processos(corrigidos: bool = False) -> None:
 
     abrir_rel_e_mudar_foco()
 
-    total_protocolos = driver.find_element(By.XPATH, "//tr[td/span[text()='Total de processos:']]/descendant::span[2]").text
-    total_protocolos = int(total_protocolos)
-    report_index = 0
-
     # Se estivermos lidando com processos corrigidos abrimos no modo de leitura
     # se não, no modo de escrita, ambos como binário.
     open_mode = 'rb' if corrigidos else 'wb'
 
-    with open('info_processos.txt', open_mode) as fp:
+    total_protocolos = driver.find_element(By.XPATH, "//tr[td/span[text()='Total de processos:']]/descendant::span[2]").text
+    total_protocolos = int(total_protocolos)
+    report_index = 1
 
+    with open('info_processos.txt', open_mode) as fp:
         while report_index < total_protocolos:
-            
-            info = extract_info_from_report(report_index)
-            if not corrigidos:
-                store_info_and_write_to_file(fp, info)
-            else:
-                store_info_and_compare(fp, info)
+            try:
+                processo = driver.find_element(By.XPATH, f"//table/descendant::table[descendant::tr[td/span[text()='Número do processo:'] and td/span[string-length(text())=12]]][{report_index}]")
+                info = extract_info_from_report(processo)
+                
+                if not corrigidos:
+                    store_info_and_write_to_file(fp, info)
+                else:
+                    store_info_and_compare(fp, info)
     
+            except exc.NoSuchElementException:
+                pass
+
             report_index += 1
     
     # Agora que já extrairmos e organizamos os processos de acordo, voltamos o foco para a janela principal
     driver.switch_to.window(driver.window_handles[0])
     print("Todos os processos foram extraídos!")
-
-
-exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
 
 
 def store_info_and_write_to_file(file, report: dict) -> None:
@@ -1356,12 +1360,15 @@ def store_info_and_write_to_file(file, report: dict) -> None:
     rep_masc = report['mascara']
 
     if not rep_masc:
-        andamento_desconhecido.append(rep_number)
+        sem_andamento.append(rep_number)
 
     else:
         if not report['online']:
             if report['solicitacao'] not in sem_etiqueta:
-                mascaras[rep_masc]['processos'].append(rep_number)
+                try:
+                    mascaras[rep_masc]['processos'].append(rep_number)
+                except KeyError:
+                    andamento_desconhecido.append(rep_nember)
         else:
             mascaras[rep_masc]['online'] = True
     
@@ -1417,9 +1424,7 @@ def store_info_and_compare(file, report: dict) -> None:
 # dessas tem uma string como valor (com a info sugerida pela chave) com exceção de
 # 'online' que tem um valor boolean, a a info não puder ser recuperada, o valor da
 # chave correspondente será '' (string vazia).
-def extract_info_from_report(prot_index: int) -> dict:
-
-    processo = driver.find_element(By.XPATH, f"//table/descendant::table[descendant::tr[td/span[text()='Número do processo:'] and td/span[string-length(text())=12]]][{prot_index + 1}]")
+def extract_info_from_report(processo: WebElement) -> dict:
     
     info_dict = dict()
     solicitacao = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Solicitação:']]/following-sibling::td/span").text
@@ -1441,7 +1446,6 @@ def extract_info_from_report(prot_index: int) -> dict:
         info_dict['mascara'] = ''
 
     return info_dict
-
 
 def get_field_values(report, fields) -> str:
 
