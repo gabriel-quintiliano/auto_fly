@@ -23,7 +23,7 @@ def main():
         af.emitir_etiquetas()
 
     if options['emitir_planilhas_corrigidas'].lower() == 's':
-        af.emitir_comprovantes_de_confirmação_isolados()
+        af.emitir_comprovantes_de_confirmacao_isolados()
 
     if options['emitir_protocolos_corrigidos'].lower() == 's':
         af.emitir_comprovantes_de_abertura_isolados()
