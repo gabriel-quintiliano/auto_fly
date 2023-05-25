@@ -1,8 +1,8 @@
 # import auto_fly_stable as af
 # import auto_fly as af
-# import auto_fly_normal as af
+import auto_fly_normal as af
 # import auto_fly_all_text as af
-import auto_fly_all_binary as af
+# import auto_fly_all_binary as af
 # import time
 
 def main():
@@ -11,7 +11,6 @@ def main():
     options = af.user_options
     
     """if options['verificar_execucao_anterior'].lower() == 's':
-        print('verificou')
         af.verificar_se_ja_foi_emitido()"""
 
     af.abrir_e_logar(options['user'], options['password'], options['organograma'])
@@ -31,10 +30,10 @@ def main():
     af.demonstrar_processos_sem_andamento()
     af.demonstrar_processos_com_andamento_incomum()
 
-    """if options['abrir_relatorios_corrigidos'].lower() == 's':
+    if options['abrir_relatorios_corrigidos'].lower() == 's':
         af.abrir_relatorios_emitidos()
-    else:"""
-    af.acessar_no_menu('Relatórios', 'Gerenciador de relatórios')
+    else:
+        af.acessar_no_menu('Relatórios', 'Gerenciador de relatórios')
     
     af.esperar_usuario_e_sair()
 
